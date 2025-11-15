@@ -1,7 +1,7 @@
 {
     ".url": {
         "metatube.Application": {
-            "title": "metatube",
+            "title": "MetaTube",
             "icon": "images/ICON_{0}.PNG",
             "type": "iframe",
             "protocol": "http",
