@@ -23,7 +23,7 @@ jobs:
 
       - name: Download fnpack
         run: |
-          curl -L -o fnpack.linux.amd64-v1.0.1 https://developer.fnnas.com/downloads/fnpack.linux.amd64-v1.0.1
+          curl -L -o fnpack.linux.amd64-v1.0.1 https://static2.fnnas.com/fnpack/fnpack-1.0.1-linux-amd64
           chmod +x fnpack.linux.amd64-v1.0.1
           sudo mv fnpack.linux.amd64-v1.0.1 /usr/local/bin/fnpack
 
