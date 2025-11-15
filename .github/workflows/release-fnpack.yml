@@ -1,0 +1,50 @@
+name: Build and Upload FNPACK Package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-fnpack:
+    name: Build FNPACK Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify tag format
+        run: |
+          echo "Tag is: $GITHUB_REF_NAME"
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag does not match vX.X.X format. Skipping."
+            exit 1
+          fi
+
+      - name: Download fnpack
+        run: |
+          curl -L -o fnpack.linux.amd64-v1.0.1 https://developer.fnnas.com/downloads/fnpack.linux.amd64-v1.0.1
+          chmod +x fnpack.linux.amd64-v1.0.1
+          sudo mv fnpack.linux.amd64-v1.0.1 /usr/local/bin/fnpack
+
+      - name: Verify fnpack
+        run: fnpack --help
+
+      - name: Build .fpk Package
+        run: |
+          PKG_NAME=$(basename "$GITHUB_REPOSITORY" | tr 'A-Z' 'a-z')
+          
+          echo "Package name: $PKG_NAME.fpk"
+          fnpack build --output "$PKG_NAME.fpk"
+
+          echo "FILE_PATH=$PKG_NAME.fpk" >> $GITHUB_ENV
+      
+      - name: Upload .fpk to Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.FILE_PATH }}
+          asset_name: ${{ env.FILE_PATH }}
+          asset_content_type: application/octet-stream
