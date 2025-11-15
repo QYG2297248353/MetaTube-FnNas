@@ -1,0 +1,8 @@
+{
+    "defaults":
+    {
+        "run-as": "root"
+    },
+    "username": "docker-metatube",
+    "groupname": "docker-metatube"
+}

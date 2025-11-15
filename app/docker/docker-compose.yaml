@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  metatube:
+    image: ghcr.io/metatube-community/metatube-server:1.3.2
+    container_name: metatube
+    ports:
+      - "${metatube_app_port}:8080"
+    restart: always
+    environment:
+      - DB_AUTO_MIGRATE=true
+      - TOKEN=${metatube_password:-}
+      - HTTP_PROXY=${metatube_proxy:-}
+      - HTTPS_PROXY=${metatube_proxy:-}
