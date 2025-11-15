@@ -1,4 +1,4 @@
-name: Build and Upload FNPACK Package
+name: Build FNPACK Package
 
 on:
   release:
