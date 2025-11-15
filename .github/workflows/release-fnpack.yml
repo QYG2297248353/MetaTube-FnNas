@@ -10,70 +10,43 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Verify tag format
         run: |
-          echo "Tag is: $GITHUB_REF_NAME"
           if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Tag does not match vX.X.X format. Exiting."
             exit 1
           fi
 
-      - name: Set variables
-        id: vars
-        run: |
-          # repo base name, lowercased for file name
-          REPO_BASENAME=$(basename "${GITHUB_REPOSITORY}")
-          REPO_LOWER=$(echo "$REPO_BASENAME" | tr 'A-Z' 'a-z')
-          TMP_DIR="${REPO_BASENAME}-src"
-          echo "repo_basename=$REPO_BASENAME" >> $GITHUB_OUTPUT
-          echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
-          echo "tmp_dir=$TMP_DIR" >> $GITHUB_OUTPUT
-
       - name: Download fnpack
         run: |
-          FN_URL="https://static2.fnnas.com/fnpack/fnpack-1.0.1-linux-amd64"
-          out="fnpack-1.0.1-linux-amd64"
-          curl --retry 3 -L -o "$out" "$FN_URL"
-          chmod +x "$out"
-          sudo mv "$out" /usr/local/bin/fnpack
-      - name: Verify fnpack works
-        run: fnpack --help
+          curl -L -o fnpack-1.0.1-linux-amd64 https://static2.fnnas.com/fnpack/fnpack-1.0.1-linux-amd64
+          chmod +x fnpack-1.0.1-linux-amd64
+          sudo mv fnpack-1.0.1-linux-amd64 /usr/local/bin/fnpack
 
-      - name: Prepare source copy (avoid moving .git)
+      - name: Prepare source directory
         run: |
-          set -e
-          echo "Copying repository contents into temporary dir: ${{ steps.vars.outputs.tmp_dir }}"
-          sudo apt-get update -y
-          sudo apt-get install -y rsync
-          rm -rf "${{ steps.vars.outputs.tmp_dir }}"
-          mkdir -p "${{ steps.vars.outputs.tmp_dir }}"
-          # copy all (including dotfiles) but exclude .git to avoid issues
-          rsync -a --exclude='.git' --exclude='.github/workflows' ./ "${{ steps.vars.outputs.tmp_dir }}/"
+          SRC_DIR="src-temp"
+          mkdir -p "$SRC_DIR"
+          rsync -a --exclude='.git' ./ "$SRC_DIR/"
+          echo "SRC_DIR=$SRC_DIR" >> $GITHUB_ENV
 
-      - name: Build .fpk with fnpack
+      - name: Build fpk
         run: |
-          set -e
-          SRC_DIR="${{ steps.vars.outputs.tmp_dir }}"
-          echo "Building from: $SRC_DIR"
-          # run build; fnpack will name output after source directory
           fnpack build -d "$SRC_DIR"
-          # fnpack outputs: <directory>.fpk — compute expected filename (lowercase)
-          REPO_LOWER="${{ steps.vars.outputs.repo_lower }}"
-          GENERATED_FPK="${{ steps.vars.outputs.repo_basename }}.fpk"
-          # If fnpack uses exact directory name but you want lowercase file name, rename:
-          if [ -f "${{ steps.vars.outputs.repo_basename }}.fpk" ]; then
-            mv "${{ steps.vars.outputs.repo_basename }}.fpk" "${REPO_LOWER}.fpk"
-          elif [ -f "${REPO_LOWER}.fpk" ]; then
-            echo "Found ${REPO_LOWER}.fpk"
-          else
-            echo "Build did not produce expected fpk. Listing current dir:"
-            ls -la
+          echo "Build finished. Searching for .fpk output..."
+          
+          FILE=$(find . -maxdepth 2 -type f -name "*.fpk" | head -n 1)
+          
+          if [ -z "$FILE" ]; then
+            echo "Error: no .fpk file generated!"
             exit 1
           fi
-          echo "FILE_PATH=${REPO_LOWER}.fpk" >> $GITHUB_ENV
+          
+          echo "Found FPK: $FILE"
+          
+          cp "$FILE" /tmp/output.fpk
+          echo "FILE_PATH=/tmp/output.fpk" >> $GITHUB_ENV
 
       - name: Upload .fpk to Release Assets
         uses: actions/upload-release-asset@v1
@@ -82,5 +55,5 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ env.FILE_PATH }}
-          asset_name: ${{ env.FILE_PATH }}
+          asset_name: ${{ github.event.repository.name }}.fpk
           asset_content_type: application/octet-stream
